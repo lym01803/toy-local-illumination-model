@@ -1,0 +1,15 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-I/Users/lym01803/Documents/Codes/PlayWithGL/include",
+      "-o",
+      "./src/main.o",
+      "./src/main.cpp"
+    ],
+    "directory": "/Users/lym01803/Documents/Codes/PlayWithGL",
+    "file": "/Users/lym01803/Documents/Codes/PlayWithGL/src/main.cpp",
+    "output": "/Users/lym01803/Documents/Codes/PlayWithGL/src/main.o"
+  }
+]
