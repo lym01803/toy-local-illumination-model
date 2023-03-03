@@ -13,20 +13,20 @@ void error_callback(int error, const char * description){
     fprintf(stderr, "Error: %s\n", description);
 }
 
-double theta = acos(-1.0) / 60.;
+double theta = acos(-1.0) / 600.;
 double rotateX = 1., rotateY = 0.;
 
 static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
-    else if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+    else if (key == GLFW_KEY_A && (action == GLFW_REPEAT or action == GLFW_PRESS)) {
         double x = rotateX * cos(theta) - rotateY * sin(theta);
         double y = rotateX * sin(theta) + rotateY * cos(theta);
         rotateX = x;
         rotateY = y;
     }
-    else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+    else if (key == GLFW_KEY_D && (action == GLFW_REPEAT or action == GLFW_PRESS)) {
         double x = rotateX * cos(theta) + rotateY * sin(theta);
         double y = -rotateX * sin(theta) + rotateY * cos(theta);
         rotateX = x;
