@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <loadshader.h>
+#include <glm/glm.hpp>
 
 #define V_POSITION 0
 
@@ -17,6 +18,17 @@ static void key_callback(GLFWwindow * window, int key, int scancode, int action,
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 }
+
+static GLfloat cube_vertex[8 * 3] = {
+    -1.f, -1.f, -1.f,
+    1.f, -1.f, -1.f,
+    1.f, 1.f, -1.f,
+    -1.f, 1.f, -1.f,
+    -1.f, -1.f, 1.f, 
+    1.f, -1.f, 1.f,
+    1.f, 1.f, 1.f,
+    -1.f, 1.f, 1.f
+};
 
 void init() {
     GLuint VertexBuffer;
