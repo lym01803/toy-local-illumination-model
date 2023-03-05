@@ -33,14 +33,14 @@ static GLfloat cube_vertex[8 * 3] = {
 };
 
 static GLfloat cube_color[8 * 3] = {
-    1., 1., .3,
-    1., .3, 1.,
-    .3, 1., 1.,
-    1., .3, .3,
-    .3, 1., .3,
-    .3, .3, 1.,
-    .7, 1., .3,
-    .3, 1., .7
+    0., 0., 0.,
+    0., 0., 1.,
+    0., 1., 0.,
+    0., 1., 1.,
+    1., 0., 0.,
+    1., 0., 1.,
+    1., 1., 0.,
+    1., 1., 1.
 };
 
 void add_triangles_vertex(GLfloat * triangles, GLfloat * vertex, int idTri, int idA, int idB, int idC) {
@@ -108,7 +108,7 @@ void init() {
     glBindBuffer(GL_ARRAY_BUFFER, VertexColorBufffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(triangles_color), triangles_color, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 1, (void *)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
 
 }
