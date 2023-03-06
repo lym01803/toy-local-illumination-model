@@ -1,3 +1,4 @@
+#include "glm/fwd.hpp"
 #include "glm/trigonometric.hpp"
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
@@ -5,21 +6,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <cmath>
 #include <loadshader.h>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
 #define V_POSITION 0
-
-void error_callback(int error, const char * description){
-    fprintf(stderr, "Error: %s\n", description);
-}
-
-static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    }
-}
 
 GLuint LoadBMPTexture(const char * imagePath) {
     unsigned char header[54];
@@ -129,6 +121,82 @@ GLuint VertexBuffer;
 GLuint VertexArrayID;
 GLuint VertexColorBufffer;
 
+glm::mat4 * GlobalMVP = NULL;
+glm::mat4 * GlobalProjection = NULL;
+glm::mat4 * GlobalView = NULL;
+glm::mat4 * GlobalModel = NULL;
+
+glm::vec3 * GlobalEye = NULL;
+
+glm::mat3 RotateToXOY(glm::vec3 vec) {
+    GLfloat r = sqrt((vec.x * vec.x + vec.z * vec.z));
+    GLfloat c = vec.x / r;
+    GLfloat s = vec.z / r;
+    return glm::mat3(c, 0.f, -s, 0.f, 1.f, 0.f, s, 0.f, c);
+}
+
+GLfloat theta = acos(-1.) / 30;
+glm::mat3 RotateStepXOY = glm::mat3(cos(theta), sin(theta), 0.f, -sin(theta), cos(theta), 0.f, 0.f, 0.f, 1.f);
+glm::mat3 RotateStepXOZ = glm::mat3(cos(theta), 0.f, sin(theta), 0.f, 1.f, 0.f, -sin(theta), 0.f, cos(theta));
+
+void error_callback(int error, const char * description){
+    fprintf(stderr, "Error: %s\n", description);
+}
+
+void updateMVP() {
+    *GlobalView = glm::mat4(glm::lookAt(
+        *GlobalEye,
+        glm::vec3(0., 0., 0.),
+        glm::vec3(0., 1., 0.)
+    ));
+    *GlobalMVP = (*GlobalProjection) * (*GlobalView) * (*GlobalModel);
+}
+glm::mat3 Scale = glm::mat3(1.1f, 0.f, 0.f, 0.f, 1.1f, 0.f, 0.f, 0.f, 1.1f);
+
+static void key_callback(GLFWwindow * window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+    else if (key == GLFW_KEY_D && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye) {
+            *GlobalEye = RotateStepXOZ * (*GlobalEye);
+            updateMVP();
+        }
+    }
+    else if (key == GLFW_KEY_A && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye) {
+            *GlobalEye = glm::inverse(RotateStepXOZ) * (*GlobalEye);
+            updateMVP();
+        }
+    }
+    else if (key == GLFW_KEY_W && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye) {
+            glm::mat3 toXOY = RotateToXOY(*GlobalEye);
+            *GlobalEye = glm::inverse(toXOY) * RotateStepXOY * toXOY * (*GlobalEye);
+            updateMVP();
+        }
+    }
+    else if (key == GLFW_KEY_S && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye) {
+            glm::mat3 toXOY = RotateToXOY(*GlobalEye);
+            *GlobalEye = glm::inverse(toXOY) * glm::inverse(RotateStepXOY) * toXOY * (*GlobalEye);
+            updateMVP();
+        }
+    }
+    else if (key == GLFW_KEY_E && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye) {
+            *GlobalEye = Scale * (*GlobalEye);
+            updateMVP();
+        }
+    }
+    else if (key == GLFW_KEY_Q && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+        if (GlobalEye && GlobalEye->length() > 1.0f) {
+            *GlobalEye = glm::inverse(Scale) * (*GlobalEye);
+            updateMVP();
+        }
+    }
+}
+
 void init() {
     
     glGenBuffers(1, &VertexBuffer);
@@ -231,7 +299,10 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    GLFWwindow * window = glfwCreateWindow(2560, 1600, "My Title", NULL, NULL);
+
+    int width = 1280;
+    int height = 800;
+    GLFWwindow * window = glfwCreateWindow(width, height, "My Title", NULL, NULL);
     if (!window) {
         std::cout << "Failed to create window" << std::endl;
         return -1;
@@ -253,30 +324,32 @@ int main() {
 
     glUseProgram(programID);
 
-    glm::mat4 Projection = glm::perspective(
+    GlobalProjection = new glm::mat4(glm::perspective(
         glm::radians(45.f),
-        2560.f / 1600.f,
+        ((GLfloat)width) / ((GLfloat)height),
         0.1f, 
         100.f
-    );
-    glm::mat4 View = glm::lookAt(
-        glm::vec3(4., 3., 3.),
+    ));
+    GlobalEye = new glm::vec3(4., 3., 3.);
+    GlobalView = new glm::mat4(glm::lookAt(
+        *GlobalEye,
         glm::vec3(0., 0., 0.),
         glm::vec3(0., 1., 0.)
-    );
-    glm::mat4 Model = glm::mat4(1.f);
-    glm::mat4 mvp = Projection * View * Model;
+    ));
+    GlobalModel = new glm::mat4(1.f);
+    GlobalMVP = new glm::mat4((*GlobalProjection) * (*GlobalView) * (*GlobalModel));
 
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
-    glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp[0][0]);
+    // glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
 
-    GLuint textureID = LoadBMPTexture("./lake.bmp");
+    GLuint textureID = LoadBMPTexture("./sea-evening-color.bmp");
     printf("ImageTexture Loaded.\n");
     // Draw
     while (!glfwWindowShouldClose(window)) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
         draw();
         glfwSwapBuffers(window);
         glfwPollEvents();
