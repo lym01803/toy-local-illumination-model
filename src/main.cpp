@@ -157,13 +157,13 @@ static void key_callback(GLFWwindow * window, int key, int scancode, int action,
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
-    else if (key == GLFW_KEY_D && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+    else if (key == GLFW_KEY_A && (action & (GLFW_PRESS | GLFW_REPEAT))) {
         if (GlobalEye) {
             *GlobalEye = RotateStepXOZ * (*GlobalEye);
             updateMVP();
         }
     }
-    else if (key == GLFW_KEY_A && (action & (GLFW_PRESS | GLFW_REPEAT))) {
+    else if (key == GLFW_KEY_D && (action & (GLFW_PRESS | GLFW_REPEAT))) {
         if (GlobalEye) {
             *GlobalEye = glm::inverse(RotateStepXOZ) * (*GlobalEye);
             updateMVP();
@@ -300,8 +300,8 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int width = 1280;
-    int height = 800;
+    int width = 1440;
+    int height = 900;
     GLFWwindow * window = glfwCreateWindow(width, height, "My Title", NULL, NULL);
     if (!window) {
         std::cout << "Failed to create window" << std::endl;
@@ -342,7 +342,7 @@ int main() {
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
     // glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
 
-    GLuint textureID = LoadBMPTexture("./sea-evening-color.bmp");
+    GLuint textureID = LoadBMPTexture("./ship-night.bmp");
     printf("ImageTexture Loaded.\n");
     // Draw
     while (!glfwWindowShouldClose(window)) {
