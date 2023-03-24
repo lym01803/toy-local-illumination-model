@@ -342,7 +342,7 @@ int main() {
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
     // glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
 
-    GLuint textureID = LoadBMPTexture("./ship-night.bmp");
+    GLuint textureID = LoadBMPTexture("./city-sun.bmp");
     printf("ImageTexture Loaded.\n");
     // Draw
     while (!glfwWindowShouldClose(window)) {
