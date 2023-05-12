@@ -1,5 +1,3 @@
-#include "glm/fwd.hpp"
-#include "glm/trigonometric.hpp"
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -10,6 +8,7 @@
 #include <loadshader.h>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <loadobj.h>
 
 #define V_POSITION 0
 
@@ -59,6 +58,8 @@ GLuint LoadBMPTexture(const char * imagePath) {
 
     return TextureID;
 }
+
+ModelObject obj = ModelObject("cube.obj");
 
 static GLfloat cube_vertex[8 * 3] = {
     1.000000, 1.000000, -1.000000,
@@ -120,6 +121,7 @@ GLfloat triangles_UV[3 * 2 * 12];
 GLuint VertexBuffer;
 GLuint VertexArrayID;
 GLuint VertexColorBufffer;
+GLuint VertexNormBuffer;
 
 glm::mat4 * GlobalMVP = NULL;
 glm::mat4 * GlobalProjection = NULL;
@@ -253,7 +255,7 @@ void init() {
     add_triangles_vertex(triangles_data, cube_vertex, 9, 1, 2, 3);
     add_triangles_vertex(triangles_data, cube_vertex, 10, 5, 4, 0);
     add_triangles_vertex(triangles_data, cube_vertex, 11, 5, 0, 1);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(triangles_data), triangles_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.vertices.size(), &obj.vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
     add_UV_vertex(triangles_UV, UV, 0, 0, 4, 8);
@@ -270,14 +272,19 @@ void init() {
     add_UV_vertex(triangles_UV, UV, 11, 7, 0, 1);
     glGenBuffers(1, &VertexColorBufffer);
     glBindBuffer(GL_ARRAY_BUFFER, VertexColorBufffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(triangles_UV), triangles_UV, GL_STATIC_DRAW);
-
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * obj.uvs.size(), &obj.uvs[0], GL_STATIC_DRAW);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+    glGenBuffers(1, &VertexNormBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, VertexNormBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.uvs.size(), &obj.normals[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 }
 
 void draw() {
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
     glEnable(GL_TEXTURE_2D);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
@@ -285,9 +292,11 @@ void draw() {
     glDrawArrays(GL_TRIANGLES, 0, 12 * 3);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
 }
 
 int main() {
+    printf(obj.status?"obj loaded successfully\n":"obj loaded failed\n");
     // Initialize glfw
     if (!glfwInit()) {
         std::cout << "Failed to initialize glfw" << std::endl;
@@ -340,7 +349,11 @@ int main() {
     GlobalMVP = new glm::mat4((*GlobalProjection) * (*GlobalView) * (*GlobalModel));
 
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
+    GLuint EyeID = glGetUniformLocation(programID, "Eye");
+    GLuint LightID = glGetUniformLocation(programID, "Light");
     // glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
+
+    glm::vec3 light_pos = glm::vec3(3., 3., 3.);
 
     GLuint textureID = LoadBMPTexture("./city-sun.bmp");
     printf("ImageTexture Loaded.\n");
@@ -350,7 +363,10 @@ int main() {
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
+        glUniform3fv(EyeID, 1, (GLfloat*)GlobalEye);
+        glUniform3fv(LightID, 1, (GLfloat*)&light_pos[0]);
         draw();
+        // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
