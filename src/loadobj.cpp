@@ -1,3 +1,5 @@
+#include "glm/ext/quaternion_geometric.hpp"
+#include "loadshader.h"
 #include <loadobj.h>
 
 
@@ -50,4 +52,28 @@ ModelObject::ModelObject(const char* loadpath) {
         }
     }
     status = true;
+}
+
+void ModelObject::apply(std::function<glm::vec3(glm::vec3)> f) {
+    for (int i = 0; i < vertices.size(); ++i) {
+        vertices[i] = f(vertices[i]);
+    }
+    // for (int i = 0;i < normals.size(); ++i) {
+    //     normals[i] = glm::normalize(f(normals[i]));
+    // }
+}
+
+void ModelObject::append(ModelObject otherobj) {
+    vertices.insert(vertices.end(), otherobj.vertices.begin(), otherobj.vertices.end());
+    uvs.insert(uvs.end(), otherobj.uvs.begin(), otherobj.uvs.end());
+    normals.insert(normals.end(), otherobj.normals.begin(), otherobj.normals.end());
+    // for (int i = 0; i < otherobj.vertices.size(); ++i) { 
+    //     vertices.push_back(otherobj.vertices[i]);
+    // }
+    // for (int i = 0; i < otherobj.uvs.size(); ++i) {
+    //     uvs.push_back(otherobj.uvs[i]);
+    // }
+    // for (int i = 0; i < otherobj.normals.size(); ++i) {
+    //     normals.push_back(otherobj.normals[i]);
+    // }
 }

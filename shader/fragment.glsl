@@ -23,8 +23,8 @@ void main() {
     normal3.xyz = normal.xyz;
     float strength = 25.0;
     float env = 0.1;
-    float kd = 0.25;
-    float kr = 0.75;
+    float kd = 0.5;
+    float kr = 1.0;
     float d2 = dot(Light_vec, Light_vec);
     view_direct = normalize(view_direct);
     Light_vec = normalize(Light_vec);
@@ -34,13 +34,15 @@ void main() {
 
     float I = 0.0;
     I += env;
-    float I_diffuse = strength * kd / d2 * dot(Light_vec, normal3);
-    if (I_diffuse > 0.) {
-        I += I_diffuse;
-    }
-    float I_reflect = strength * kr / d2 * dot(out_vec, view_direct) * dot(out_vec, view_direct);
-    if (I_reflect > 0.) {
-        I += I_reflect;
+    if (dot(Light_vec, normal3) > 0.) {
+        float I_diffuse = strength * kd / d2 * dot(Light_vec, normal3);
+        if (I_diffuse > 0.) {
+            I += I_diffuse;
+        }
+        float I_reflect = strength * kr / d2 * dot(out_vec, view_direct) * dot(out_vec, view_direct);
+        if (I_reflect > 0.) {
+            I += I_reflect;
+        }
     }
 
     fColor = vec4(I, I, I, 1.0);

@@ -20,7 +20,10 @@ public:
     vector< glm::vec2 > uvs;
     vector< glm::vec3 > normals;
     bool status;
+    ModelObject(){ };
     ModelObject(const char* loadpath);
+    void apply(std::function<glm::vec3(glm::vec3)>);
+    void append(ModelObject);
 };
 
 #endif

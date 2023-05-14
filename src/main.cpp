@@ -1,3 +1,6 @@
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/fwd.hpp"
+#include "glm/matrix.hpp"
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -59,7 +62,7 @@ GLuint LoadBMPTexture(const char * imagePath) {
     return TextureID;
 }
 
-ModelObject obj = ModelObject("cube.obj");
+ModelObject obj;
 
 static GLfloat cube_vertex[8 * 3] = {
     1.000000, 1.000000, -1.000000,
@@ -174,14 +177,24 @@ static void key_callback(GLFWwindow * window, int key, int scancode, int action,
     else if (key == GLFW_KEY_W && (action & (GLFW_PRESS | GLFW_REPEAT))) {
         if (GlobalEye) {
             glm::mat3 toXOY = RotateToXOY(*GlobalEye);
+            // glm::vec3 copy = glm::vec3(*GlobalEye);
             *GlobalEye = glm::inverse(toXOY) * RotateStepXOY * toXOY * (*GlobalEye);
+            // std::cout << glm::dot(*GlobalEye, copy) << std::endl;
+            // if (glm::dot(*GlobalEye, copy) < 0) {
+            //     *GlobalEye = -(*GlobalEye);
+            // }
             updateMVP();
         }
     }
     else if (key == GLFW_KEY_S && (action & (GLFW_PRESS | GLFW_REPEAT))) {
         if (GlobalEye) {
             glm::mat3 toXOY = RotateToXOY(*GlobalEye);
+            // glm::vec3 copy = glm::vec3(*GlobalEye);
             *GlobalEye = glm::inverse(toXOY) * glm::inverse(RotateStepXOY) * toXOY * (*GlobalEye);
+            // std::cout << glm::dot(*GlobalEye, copy) << std::endl;
+            // if (glm::dot(*GlobalEye, copy) < 0) {
+            //     *GlobalEye = -(*GlobalEye);
+            // }
             updateMVP();
         }
     }
@@ -277,7 +290,7 @@ void init() {
 
     glGenBuffers(1, &VertexNormBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, VertexNormBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.uvs.size(), &obj.normals[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.normals.size(), &obj.normals[0], GL_STATIC_DRAW);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 }
 
@@ -289,14 +302,14 @@ void draw() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
-    glDrawArrays(GL_TRIANGLES, 0, 12 * 3);
+    glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
 }
 
 int main() {
-    printf(obj.status?"obj loaded successfully\n":"obj loaded failed\n");
+    // printf(obj.status?"obj loaded successfully\n":"obj loaded failed\n");
     // Initialize glfw
     if (!glfwInit()) {
         std::cout << "Failed to initialize glfw" << std::endl;
@@ -326,7 +339,61 @@ int main() {
 
     ShaderStage stages[2] = {StageVertex, StageFragment};
     const char * filePaths[2] = {"shader/vertex.glsl", "shader/fragment.glsl"};
-    
+
+    ModelObject obj1 = ModelObject("cube.obj");
+    glm::mat4 trans_1 = glm::mat4(
+        glm::vec4(0.75, 0., 0., 0.),
+        glm::vec4(0., 0.75, 0., 0.),
+        glm::vec4(0., 0., 0.75, 0.),
+        glm::vec4(0., 0., 0., 1.0)
+    );
+    auto proj_1 = [trans_1](glm::vec3 x) -> glm::vec3 {
+        glm::vec4 x4 = glm::vec4(x.x, x.y, x.z, 1.0);
+        x4 = trans_1 * x4;
+        glm::vec3 x3 = glm::vec3(x4.x, x4.y, x4.z);
+        return x3;
+    };
+    obj1.apply(proj_1);
+
+    ModelObject obj2 = ModelObject("cube.obj");
+    glm::mat4 trans_2 = glm::mat4(1.0);
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         std::cout << trans_2[i][j] << ' ';
+    //     }
+    //     std::cout << std::endl;
+    // }
+    trans_2 = glm::translate(trans_2, glm::vec3(0.875, 0., 0.));
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         std::cout << trans_2[i][j] << ' ';
+    //     }
+    //     std::cout << std::endl;
+    // }
+    trans_2 = glm::scale(trans_2, glm::vec3(0.125, 0.125, 0.125));
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         std::cout << trans_2[i][j] << ' ';
+    //     }
+    //     std::cout << std::endl;
+    // }
+    auto proj_2 = [trans_2](glm::vec3 x) -> glm::vec3 {
+        glm::vec4 x4 = glm::vec4(x.x, x.y, x.z, 1.0);
+        // std::cout << x4[0] << ' ' << x4[1] << ' ' << x4[2] << ' ' << x4[3] << " fuck-1" << std::endl;
+        x4 = trans_2 * x4;
+        // std::cout << x4[0] << ' ' << x4[1] << ' ' << x4[2] << ' ' << x4[3] << " fuck-2" << std::endl;
+        glm::vec3 x3 = glm::vec3(x4.x, x4.y, x4.z);
+        return x3;
+    };
+    obj2.apply(proj_2);
+    for (int i = 0; i < obj2.vertices.size(); ++i) {
+        std::cout << obj2.vertices[i][0] << ' ' << obj2.vertices[i][1] << ' ' <<obj2.vertices[i][2] << std::endl;
+    }
+
+    obj.append(obj1);
+    obj.append(obj2);
+    std::cout << obj.vertices.size() << std::endl;
+
     init();
     printf("Initialized.\n");
     GLuint programID = LoadShaders(2, stages, filePaths);
@@ -369,6 +436,8 @@ int main() {
         // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
         glfwSwapBuffers(window);
         glfwPollEvents();
+        *GlobalEye = RotateStepXOZ * (*GlobalEye);
+        // updateMVP();
     }
 
     // Exit
