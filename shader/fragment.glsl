@@ -3,14 +3,17 @@
 in vec2 UV;
 in vec4 pos;
 in vec4 normal;
+in vec4 shadow_coord;
 
 layout (location = 0) out vec4 fColor;
 
 // uniform mat4 MVP;
 
-uniform sampler2D TextureSampler;
+// uniform sampler2D TextureSampler;
+uniform sampler2D depth_texture;
 uniform vec3 Eye;
 uniform vec3 Light;
+uniform mat4 shadow_matrix1;
 
 void main() {
     // fColor = vec4(1.0, 0.5, 0.25, 1.0);
@@ -32,16 +35,24 @@ void main() {
 
     vec3 out_vec = 2.0 * dot(Light_vec, normal3) * normal3 - Light_vec;
 
+    // float f = textureProj(depth_texture, shadow_matrix1 * pos);
+    float f = 1.0;
+    // if (texture(depth_texture, shadow_coord.xy).z < shadow_coord.z) {
+    //     f = 0.0;
+    // }
+
+    f = texture(depth_texture, shadow_coord.xy).z;
+
     float I = 0.0;
     I += env;
     if (dot(Light_vec, normal3) > 0.) {
         float I_diffuse = strength * kd / d2 * dot(Light_vec, normal3);
         if (I_diffuse > 0.) {
-            I += I_diffuse;
+            I += f * I_diffuse;
         }
         float I_reflect = strength * kr / d2 * dot(out_vec, view_direct) * dot(out_vec, view_direct);
         if (I_reflect > 0.) {
-            I += I_reflect;
+            I += f * I_reflect;
         }
     }
 

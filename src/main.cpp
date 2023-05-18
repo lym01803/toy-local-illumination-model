@@ -1,6 +1,8 @@
+#include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/fwd.hpp"
 #include "glm/matrix.hpp"
+#include <cstddef>
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -14,94 +16,13 @@
 #include <loadobj.h>
 
 #define V_POSITION 0
+#define DEPTH_TEXTURE_SIZE 4096
 
-GLuint LoadBMPTexture(const char * imagePath) {
-    unsigned char header[54];
-    unsigned int dataPos;
-    unsigned int width, height, size;
-    
-    FILE * file = fopen(imagePath, "rb");
-    if (file == NULL) {
-        printf("Cannot open image file %s\n", imagePath);
-        return 0;
-    }
-    if (fread(header, sizeof(unsigned char), 54, file) != 54) {
-        printf("Cannot read bmp header\n");
-        return 0;
-    }
-    if (header[0] != 'B' || header[1] != 'M') {
-        printf("Not a correct bmp file\n");
-        return 0;
-    }
+enum TextureType {shadowmap, nummaps};
 
-    dataPos = *((int*)&header[0x0A]);
-    size = *((int*)&header[0x22]);
-    width = *((int*)&header[0x12]);
-    height = *((int*)&header[0x16]);
-
-    if (size == 0) {
-        size = width * height * 3;
-    }
-    if (dataPos == 0) {
-        dataPos = 54;
-    }
-
-    unsigned char * data = new unsigned char [size];
-    fread(data, sizeof(unsigned char), size, file);
-    fclose(file);
-
-    GLuint TextureID;
-    glGenTextures(1, &TextureID);
-    glBindTexture(GL_TEXTURE_2D, TextureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    return TextureID;
-}
+GLuint TextureIDs[nummaps];
 
 ModelObject obj;
-
-static GLfloat cube_vertex[8 * 3] = {
-    1.000000, 1.000000, -1.000000,
-    1.000000, -1.000000, -1.000000,
-    1.000000, 1.000000, 1.000000,
-    1.000000, -1.000000, 1.000000,
-    -1.000000, 1.000000, -1.000000,
-    -1.000000, -1.000000, -1.000000,
-    -1.000000, 1.000000, 1.000000,
-    -1.000000, -1.000000, 1.000000
-};
-
-static GLfloat cube_color[8 * 3] = {
-    0., 0., 0.,
-    0., 0., 1.,
-    0., 1., 0.,
-    0., 1., 1.,
-    1., 0., 0.,
-    1., 0., 1.,
-    1., 1., 0.,
-    1., 1., 1.
-};
-
-static GLfloat UV[14 * 2] = {
-    0.628215, 1. - 0.497363,
-    0.431948, 1. - 0.497363,
-    0.628215, 1. - 0.747363,
-    0.431948, 1. - 0.747363,
-    0.824482, 1. - 0.497363,
-    0.628215, 1. - 0.247363,
-    0.235681, 1. - 0.497363,
-    0.431948, 1. - 0.247363,
-    0.824482, 1. - 0.747363,
-    0.628215, 1. - 0.997363,
-    0.628215, 1. - 0.002637,
-    0.431948, 1. - 0.997363,
-    0.431948, 1. - 0.002637,
-    0.235681, 1. - 0.747363
-};
 
 void add_triangles_vertex(GLfloat * triangles, GLfloat * vertex, int idTri, int idA, int idB, int idC) {
     GLfloat * start = triangles + idTri * 9;
@@ -116,10 +37,6 @@ void add_UV_vertex(GLfloat * UVArray, GLfloat * uv, int idTri, int idA, int idB,
     memcpy(start + 2, uv + idB * 2, sizeof(GLfloat) * 2);
     memcpy(start + 4, uv + idC * 2, sizeof(GLfloat) * 2);
 }
-
-GLfloat triangles_data[3 * 3 * 12];
-GLfloat triangles_color[3 * 3 * 12];
-GLfloat triangles_UV[3 * 2 * 12];
 
 GLuint VertexBuffer;
 GLuint VertexArrayID;
@@ -227,62 +144,11 @@ void init() {
         1.f, -1.f, 
         0.f, 1.f,
     };
-
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
-    // add_triangles_vertex(triangles_data, cube_vertex, 0, 0, 1, 2);
-    // add_triangles_vertex(triangles_data, cube_vertex, 1, 0, 3, 2);
-    // add_triangles_vertex(triangles_data, cube_vertex, 2, 1, 5, 6);
-    // add_triangles_vertex(triangles_data, cube_vertex, 3, 1, 2, 6);
-    // add_triangles_vertex(triangles_data, cube_vertex, 4, 5, 4, 7);
-    // add_triangles_vertex(triangles_data, cube_vertex, 5, 5, 6, 7);
-    // add_triangles_vertex(triangles_data, cube_vertex, 6, 4, 0, 3);
-    // add_triangles_vertex(triangles_data, cube_vertex, 7, 4, 7, 3);
-    // add_triangles_vertex(triangles_data, cube_vertex, 8, 6, 7, 3);
-    // add_triangles_vertex(triangles_data, cube_vertex, 9, 6, 2, 3);
-    // add_triangles_vertex(triangles_data, cube_vertex, 10, 1, 0, 4);
-    // add_triangles_vertex(triangles_data, cube_vertex, 11, 1, 5, 4);
-
-    // add_triangles_vertex(triangles_color, cube_color, 0, 0, 1, 2);
-    // add_triangles_vertex(triangles_color, cube_color, 1, 0, 3, 2);
-    // add_triangles_vertex(triangles_color, cube_color, 2, 1, 5, 6);
-    // add_triangles_vertex(triangles_color, cube_color, 3, 1, 2, 6);
-    // add_triangles_vertex(triangles_color, cube_color, 4, 5, 4, 7);
-    // add_triangles_vertex(triangles_color, cube_color, 5, 5, 6, 7);
-    // add_triangles_vertex(triangles_color, cube_color, 6, 4, 0, 3);
-    // add_triangles_vertex(triangles_color, cube_color, 7, 4, 7, 3);
-    // add_triangles_vertex(triangles_color, cube_color, 8, 6, 7, 3);
-    // add_triangles_vertex(triangles_color, cube_color, 9, 6, 2, 3);
-    // add_triangles_vertex(triangles_color, cube_color, 10, 1, 0, 4);
-    // add_triangles_vertex(triangles_color, cube_color, 11, 1, 5, 4);
     
     printf("Buffer Data.\n");
-    add_triangles_vertex(triangles_data, cube_vertex, 0, 0, 4, 6);
-    add_triangles_vertex(triangles_data, cube_vertex, 1, 0, 6, 2);
-    add_triangles_vertex(triangles_data, cube_vertex, 2, 3, 2, 6);
-    add_triangles_vertex(triangles_data, cube_vertex, 3, 3, 6, 7);
-    add_triangles_vertex(triangles_data, cube_vertex, 4, 7, 6, 4);
-    add_triangles_vertex(triangles_data, cube_vertex, 5, 7, 4, 5);
-    add_triangles_vertex(triangles_data, cube_vertex, 6, 5, 1, 3);
-    add_triangles_vertex(triangles_data, cube_vertex, 7, 5, 3, 7);
-    add_triangles_vertex(triangles_data, cube_vertex, 8, 1, 0, 2);
-    add_triangles_vertex(triangles_data, cube_vertex, 9, 1, 2, 3);
-    add_triangles_vertex(triangles_data, cube_vertex, 10, 5, 4, 0);
-    add_triangles_vertex(triangles_data, cube_vertex, 11, 5, 0, 1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.vertices.size(), &obj.vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
-    add_UV_vertex(triangles_UV, UV, 0, 0, 4, 8);
-    add_UV_vertex(triangles_UV, UV, 1, 0, 8, 2);
-    add_UV_vertex(triangles_UV, UV, 2, 3, 2, 9);
-    add_UV_vertex(triangles_UV, UV, 3, 3, 9, 11);
-    add_UV_vertex(triangles_UV, UV, 4, 12, 10, 5);
-    add_UV_vertex(triangles_UV, UV, 5, 12, 5, 7);
-    add_UV_vertex(triangles_UV, UV, 6, 6, 1, 3);
-    add_UV_vertex(triangles_UV, UV, 7, 6, 3, 13);
-    add_UV_vertex(triangles_UV, UV, 8, 1, 0, 2);
-    add_UV_vertex(triangles_UV, UV, 9, 1, 2, 3);
-    add_UV_vertex(triangles_UV, UV, 10, 7, 5, 0);
-    add_UV_vertex(triangles_UV, UV, 11, 7, 0, 1);
     glGenBuffers(1, &VertexColorBufffer);
     glBindBuffer(GL_ARRAY_BUFFER, VertexColorBufffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * obj.uvs.size(), &obj.uvs[0], GL_STATIC_DRAW);
@@ -306,6 +172,34 @@ void draw() {
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
+}
+
+void shadow_map(GLuint * depth_fbo_ID) {
+    GLuint tid = TextureIDs[shadowmap];
+    glGenTextures(1, &tid);
+    glBindTexture(GL_TEXTURE_2D, tid);
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // glBindTexture(GL_TEXTURE_2D, 0);
+
+    // GLuint depth_fbo_ID;
+    glGenFramebuffers(1, depth_fbo_ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, *depth_fbo_ID);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, *depth_fbo_ID, 0);
+    glDrawBuffer(GL_NONE);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        printf("Fuck you!!!!\n");
+    }
 }
 
 int main() {
@@ -337,9 +231,6 @@ int main() {
         std::cout << "gladLoadGL failed" << std::endl;
     }
 
-    ShaderStage stages[2] = {StageVertex, StageFragment};
-    const char * filePaths[2] = {"shader/vertex.glsl", "shader/fragment.glsl"};
-
     ModelObject obj1 = ModelObject("cube.obj");
     glm::mat4 trans_1 = glm::mat4(
         glm::vec4(0.75, 0., 0., 0.),
@@ -357,31 +248,11 @@ int main() {
 
     ModelObject obj2 = ModelObject("cube.obj");
     glm::mat4 trans_2 = glm::mat4(1.0);
-    // for (int i = 0; i < 4; ++i) {
-    //     for (int j = 0; j < 4; ++j) {
-    //         std::cout << trans_2[i][j] << ' ';
-    //     }
-    //     std::cout << std::endl;
-    // }
     trans_2 = glm::translate(trans_2, glm::vec3(0.875, 0., 0.));
-    // for (int i = 0; i < 4; ++i) {
-    //     for (int j = 0; j < 4; ++j) {
-    //         std::cout << trans_2[i][j] << ' ';
-    //     }
-    //     std::cout << std::endl;
-    // }
     trans_2 = glm::scale(trans_2, glm::vec3(0.125, 0.125, 0.125));
-    // for (int i = 0; i < 4; ++i) {
-    //     for (int j = 0; j < 4; ++j) {
-    //         std::cout << trans_2[i][j] << ' ';
-    //     }
-    //     std::cout << std::endl;
-    // }
     auto proj_2 = [trans_2](glm::vec3 x) -> glm::vec3 {
         glm::vec4 x4 = glm::vec4(x.x, x.y, x.z, 1.0);
-        // std::cout << x4[0] << ' ' << x4[1] << ' ' << x4[2] << ' ' << x4[3] << " fuck-1" << std::endl;
         x4 = trans_2 * x4;
-        // std::cout << x4[0] << ' ' << x4[1] << ' ' << x4[2] << ' ' << x4[3] << " fuck-2" << std::endl;
         glm::vec3 x3 = glm::vec3(x4.x, x4.y, x4.z);
         return x3;
     };
@@ -396,6 +267,58 @@ int main() {
 
     init();
     printf("Initialized.\n");
+
+    // GLuint textureID = LoadBMPTexture("./city-sun.bmp");
+
+    glm::vec3 light_pos = glm::vec3(3., 3., 3.);
+    glm::mat4 light_view_matrix = glm::mat4(
+        glm::lookAt(light_pos, glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0))
+    );
+    glm::mat4 light_project_matrix = glm::mat4(
+        glm::ortho<float>(-10., 10., -10., 10., -10., 20.)
+    );
+    glm::mat4 shadow_mvp = light_project_matrix * light_view_matrix;
+
+    ShaderStage shadow_stages[2] = {StageVertex, StageFragment};
+    const char * shadow_filePaths[2] = {"shader/shadowmap_vertex.glsl", "shader/shadowmap_fragment.glsl"};
+
+    GLuint shadow_programID = LoadShaders(2, shadow_stages, shadow_filePaths);
+
+    glUseProgram(shadow_programID);
+    glUniformMatrix4fv(
+        glGetUniformLocation(shadow_programID, "MVP"),
+        1,
+        GL_FALSE,
+        (GLfloat*)&shadow_mvp
+    );
+    
+    GLuint depth_fbo_ID;
+    shadow_map(&depth_fbo_ID);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID);
+    glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
+    glClearDepth(1.0f);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    // glEnable(GL_POLYGON_OFFSET_FILL);
+    // glPolygonOffset(2.0f, 4.0f);
+
+    glEnableVertexAttribArray(0);
+    // glEnable(GL_TEXTURE_2D);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // glEnable(GL_DEPTH_TEST);
+    // glDepthFunc(GL_LESS);
+    glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
+    glDisableVertexAttribArray(0);
+
+    // glDisable(GL_POLYGON_OFFSET_FILL);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDrawBuffer(GL_BACK);
+
+    ShaderStage stages[2] = {StageVertex, StageFragment};
+    const char * filePaths[2] = {"shader/vertex.glsl", "shader/fragment.glsl"};
+
     GLuint programID = LoadShaders(2, stages, filePaths);
 
     glUseProgram(programID);
@@ -418,25 +341,33 @@ int main() {
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
     GLuint EyeID = glGetUniformLocation(programID, "Eye");
     GLuint LightID = glGetUniformLocation(programID, "Light");
+    GLuint ShadowMatrix1ID = glGetUniformLocation(programID, "shadow_matrix1");
     // glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
 
-    glm::vec3 light_pos = glm::vec3(3., 3., 3.);
+    // glm::vec3 light_pos = glm::vec3(3., 3., 3.);
+    glm::mat4 shadow_matrix1 = glm::mat4(
+        glm::vec4(0.5, 0.0, 0.0, 0.0),
+        glm::vec4(0.0, 0.5, 0.0, 0.0),
+        glm::vec4(0.0, 0.0, 0.5, 0.0),
+        glm::vec4(0.5, 0.5, 0.5, 1.0)
+    ) * shadow_mvp;
 
-    GLuint textureID = LoadBMPTexture("./city-sun.bmp");
     printf("ImageTexture Loaded.\n");
     // Draw
     while (!glfwWindowShouldClose(window)) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
+        // printf("%d %d\n", width, height);
         glViewport(0, 0, width, height);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
         glUniform3fv(EyeID, 1, (GLfloat*)GlobalEye);
         glUniform3fv(LightID, 1, (GLfloat*)&light_pos[0]);
+        glUniformMatrix4fv(ShadowMatrix1ID, 1, GL_FALSE, (GLfloat*)&shadow_matrix1);
         draw();
         // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
         glfwSwapBuffers(window);
         glfwPollEvents();
-        *GlobalEye = RotateStepXOZ * (*GlobalEye);
+        // *GlobalEye = RotateStepXOZ * (*GlobalEye);
         // updateMVP();
     }
 
