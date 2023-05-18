@@ -23,4 +23,5 @@ void main() {
     UV = vertexUV;
     normal = in_normal;
     shadow_coord = shadow_matrix1 * position;
+    // gl_Position = shadow_coord;
 }

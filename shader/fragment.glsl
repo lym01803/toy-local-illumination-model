@@ -35,13 +35,15 @@ void main() {
 
     vec3 out_vec = 2.0 * dot(Light_vec, normal3) * normal3 - Light_vec;
 
-    // float f = textureProj(depth_texture, shadow_matrix1 * pos);
     float f = 1.0;
-    // if (texture(depth_texture, shadow_coord.xy).z < shadow_coord.z) {
-    //     f = 0.0;
-    // }
 
-    f = texture(depth_texture, shadow_coord.xy).z;
+    vec4 sc_post_w = shadow_coord / shadow_coord.w;
+
+    float bias = 0.00001 * tan(acos(dot(normal3, Light_vec)));
+    bias = clamp(bias, 0.0, 0.001);
+    if (texture(depth_texture, sc_post_w.xy).x + bias < sc_post_w.z) {
+        f = 0.0;
+    }
 
     float I = 0.0;
     I += env;

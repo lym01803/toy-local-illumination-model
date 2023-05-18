@@ -1,5 +1,6 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "glm/ext/vector_float3.hpp"
 #include "glm/fwd.hpp"
 #include "glm/matrix.hpp"
 #include <cstddef>
@@ -20,7 +21,7 @@
 
 enum TextureType {shadowmap, nummaps};
 
-GLuint TextureIDs[nummaps];
+GLuint TextureIDs[nummaps] = {0xffffffff};
 
 ModelObject obj;
 
@@ -137,15 +138,6 @@ void init() {
 
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
-    printf("Vertex Array Bound.\n");
-
-    static const GLfloat vertex_data[] = {
-        -1.f, -1.f,
-        1.f, -1.f, 
-        0.f, 1.f,
-    };
-    
-    printf("Buffer Data.\n");
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * obj.vertices.size(), &obj.vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
@@ -174,15 +166,15 @@ void draw() {
     glDisableVertexAttribArray(2);
 }
 
-void shadow_map(GLuint * depth_fbo_ID) {
-    GLuint tid = TextureIDs[shadowmap];
+void shadow_map(GLuint * depth_fbo_ID_ptr) {
+    GLuint& tid = TextureIDs[shadowmap];
     glGenTextures(1, &tid);
     glBindTexture(GL_TEXTURE_2D, tid);
     
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
     
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
@@ -191,15 +183,17 @@ void shadow_map(GLuint * depth_fbo_ID) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     // glBindTexture(GL_TEXTURE_2D, 0);
 
-    // GLuint depth_fbo_ID;
-    glGenFramebuffers(1, depth_fbo_ID);
-    glBindFramebuffer(GL_FRAMEBUFFER, *depth_fbo_ID);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, *depth_fbo_ID, 0);
+    glGenFramebuffers(1, depth_fbo_ID_ptr);
+    glBindFramebuffer(GL_FRAMEBUFFER, *depth_fbo_ID_ptr);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, *depth_fbo_ID_ptr, 0);
     glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         printf("Fuck you!!!!\n");
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 int main() {
@@ -274,9 +268,15 @@ int main() {
     glm::mat4 light_view_matrix = glm::mat4(
         glm::lookAt(light_pos, glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0))
     );
-    glm::mat4 light_project_matrix = glm::mat4(
-        glm::ortho<float>(-10., 10., -10., 10., -10., 20.)
-    );
+    // glm::mat4 light_project_matrix = glm::mat4(
+    //     glm::ortho<float>(-10., 10., -10., 10., -10., 20.)
+    // );
+    glm::mat4 light_project_matrix = glm::mat4(glm::perspective(
+        glm::radians(45.f),
+        1.0f,
+        0.1f, 
+        100.f
+    ));
     glm::mat4 shadow_mvp = light_project_matrix * light_view_matrix;
 
     ShaderStage shadow_stages[2] = {StageVertex, StageFragment};
@@ -292,29 +292,18 @@ int main() {
         (GLfloat*)&shadow_mvp
     );
     
-    GLuint depth_fbo_ID;
+    GLuint depth_fbo_ID = 0xffffffff;
     shadow_map(&depth_fbo_ID);
+    std::cout << TextureIDs[shadowmap] << ' ' << depth_fbo_ID << ' ' << std::endl;
 
     glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID);
     glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
-    glClearDepth(1.0f);
+    // glClearDepth(1.0f);
     glClear(GL_DEPTH_BUFFER_BIT);
 
-    // glEnable(GL_POLYGON_OFFSET_FILL);
-    // glPolygonOffset(2.0f, 4.0f);
-
-    glEnableVertexAttribArray(0);
-    // glEnable(GL_TEXTURE_2D);
-    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // glEnable(GL_DEPTH_TEST);
-    // glDepthFunc(GL_LESS);
-    glDrawArrays(GL_TRIANGLES, 0, obj.vertices.size());
-    glDisableVertexAttribArray(0);
-
-    // glDisable(GL_POLYGON_OFFSET_FILL);
+    draw();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDrawBuffer(GL_BACK);
 
     ShaderStage stages[2] = {StageVertex, StageFragment};
     const char * filePaths[2] = {"shader/vertex.glsl", "shader/fragment.glsl"};
@@ -322,6 +311,11 @@ int main() {
     GLuint programID = LoadShaders(2, stages, filePaths);
 
     glUseProgram(programID);
+
+    // GLuint texloc = glGetUniformLocation(programID, "depth_texture");
+    // glUniform1i(texloc, 0);
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, TextureIDs[shadowmap]);
 
     GlobalProjection = new glm::mat4(glm::perspective(
         glm::radians(45.f),
@@ -351,6 +345,19 @@ int main() {
         glm::vec4(0.0, 0.0, 0.5, 0.0),
         glm::vec4(0.5, 0.5, 0.5, 1.0)
     ) * shadow_mvp;
+
+    for (int i = 0; i < obj1.vertices.size(); ++i) {
+        glm::vec4 temp = glm::vec4(obj1.vertices[i][0], obj1.vertices[i][1], obj1.vertices[i][2], 1.0);
+        temp = (shadow_mvp) * temp;
+        temp /= temp[3];
+        temp = glm::mat4(
+            glm::vec4(0.5, 0.0, 0.0, 0.0),
+            glm::vec4(0.0, 0.5, 0.0, 0.0),
+            glm::vec4(0.0, 0.0, 0.5, 0.0),
+            glm::vec4(0.5, 0.5, 0.5, 1.0)
+        ) * temp;
+        std::cout << temp[0] << ' ' << temp[1] << ' ' << temp[2] << ' ' << temp[3] << std::endl;
+    }
 
     printf("ImageTexture Loaded.\n");
     // Draw
