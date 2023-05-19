@@ -3,13 +3,42 @@
     "arguments": [
       "/usr/bin/g++",
       "-c",
+      "-std=c++17",
       "-I/Users/lym01803/Documents/Codes/PlayWithGL/include",
       "-o",
-      "./src/main.o",
-      "./src/main.cpp"
+      "src/main.o",
+      "src/main.cpp"
     ],
     "directory": "/Users/lym01803/Documents/Codes/PlayWithGL",
     "file": "/Users/lym01803/Documents/Codes/PlayWithGL/src/main.cpp",
     "output": "/Users/lym01803/Documents/Codes/PlayWithGL/src/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++17",
+      "-I/Users/lym01803/Documents/Codes/PlayWithGL/include",
+      "-o",
+      "src/loadshader.o",
+      "src/loadshader.cpp"
+    ],
+    "directory": "/Users/lym01803/Documents/Codes/PlayWithGL",
+    "file": "/Users/lym01803/Documents/Codes/PlayWithGL/src/loadshader.cpp",
+    "output": "/Users/lym01803/Documents/Codes/PlayWithGL/src/loadshader.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-c",
+      "-std=c++17",
+      "-I/Users/lym01803/Documents/Codes/PlayWithGL/include",
+      "-o",
+      "src/loadobj.o",
+      "src/loadobj.cpp"
+    ],
+    "directory": "/Users/lym01803/Documents/Codes/PlayWithGL",
+    "file": "/Users/lym01803/Documents/Codes/PlayWithGL/src/loadobj.cpp",
+    "output": "/Users/lym01803/Documents/Codes/PlayWithGL/src/loadobj.o"
   }
 ]

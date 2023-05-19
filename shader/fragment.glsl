@@ -40,7 +40,7 @@ void main() {
     vec4 sc_post_w = shadow_coord / shadow_coord.w;
 
     float bias = 0.00001 * tan(acos(dot(normal3, Light_vec)));
-    bias = clamp(bias, 0.0, 0.001);
+    bias = clamp(bias, 0.00001, 0.001);
     if (texture(depth_texture, sc_post_w.xy).x + bias < sc_post_w.z) {
         f = 0.0;
     }
