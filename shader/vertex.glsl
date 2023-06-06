@@ -10,9 +10,11 @@ out vec2 UV;
 out vec4 pos;
 out vec4 normal;
 out vec4 shadow_coord;
+out vec4 shadow_coord2;
 
 uniform mat4 MVP;
 uniform mat4 shadow_matrix1;
+uniform mat4 shadow_matrix2;
 
 // uniform sampler2D TextureSampler;
 
@@ -23,5 +25,6 @@ void main() {
     UV = vertexUV;
     normal = in_normal;
     shadow_coord = shadow_matrix1 * position;
+    shadow_coord2 = shadow_matrix2 * position;
     // gl_Position = shadow_coord;
 }

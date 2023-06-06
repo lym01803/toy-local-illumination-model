@@ -22,7 +22,7 @@
 #define V_POSITION 0
 #define DEPTH_TEXTURE_SIZE 4096
 
-enum TextureType {shadowmap, nummaps};
+enum TextureType {shadowmap, shadowmap2, nummaps};
 
 GLuint TextureIDs[nummaps] = {0xffffffff};
 
@@ -171,8 +171,8 @@ void draw(int size_count) {
     glDisableVertexAttribArray(2);
 }
 
-void shadow_map(GLuint * depth_fbo_ID_ptr) {
-    GLuint& tid = TextureIDs[shadowmap];
+void bind_shadow_map(int index, GLuint * depth_fbo_ID_ptr) {
+    GLuint& tid = TextureIDs[index];
     glGenTextures(1, &tid);
     glBindTexture(GL_TEXTURE_2D, tid);
     
@@ -192,7 +192,7 @@ void shadow_map(GLuint * depth_fbo_ID_ptr) {
     glBindFramebuffer(GL_FRAMEBUFFER, *depth_fbo_ID_ptr);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, *depth_fbo_ID_ptr, 0);
     glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
+    // glReadBuffer(GL_NONE);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         printf("Fuck you!!!!\n");
@@ -256,6 +256,25 @@ int main() {
     ));
     glm::mat4 shadow_mvp = light_project_matrix * light_view_matrix;
 
+    glm::vec3 light_pos2 = glm::vec3(-4., 4., 3.);
+    glm::mat4 light_view_matrix2 = glm::mat4(
+        glm::lookAt(light_pos2, glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0))
+    );
+    glm::mat4 light_project_matrix2 = glm::mat4(glm::perspective(
+        glm::radians(85.f),
+        1.0f,
+        0.1f, 
+        100.f
+    ));
+    glm::mat4 shadow_mvp2 = light_project_matrix2 * light_view_matrix2;
+
+    GLuint depth_fbo_ID[nummaps];
+    memset(depth_fbo_ID, 0xff, sizeof(GLuint) * nummaps);
+    bind_shadow_map(shadowmap, &depth_fbo_ID[shadowmap]);
+    bind_shadow_map(shadowmap2, &depth_fbo_ID[shadowmap2]);
+    std::cout << TextureIDs[shadowmap] << ' ' << depth_fbo_ID[shadowmap] << ' ' << std::endl;
+    std::cout << TextureIDs[shadowmap2] << ' ' << depth_fbo_ID[shadowmap2] << ' ' << std::endl;
+
     ShaderStage shadow_stages[2] = {StageVertex, StageFragment};
     const char * shadow_filePaths[2] = {"shader/shadowmap_vertex.glsl", "shader/shadowmap_fragment.glsl"};
 
@@ -268,17 +287,24 @@ int main() {
         GL_FALSE,
         (GLfloat*)&shadow_mvp
     );
-    
-    GLuint depth_fbo_ID = 0xffffffff;
-    shadow_map(&depth_fbo_ID);
-    std::cout << TextureIDs[shadowmap] << ' ' << depth_fbo_ID << ' ' << std::endl;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID);
+    glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID[shadowmap]);
     glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
     glClear(GL_DEPTH_BUFFER_BIT);
-
     draw(vertex_count);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    glUniformMatrix4fv(
+        glGetUniformLocation(shadow_programID, "MVP"),
+        1,
+        GL_FALSE,
+        (GLfloat*)&shadow_mvp2
+    );
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID[shadowmap2]);
+    glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    draw(vertex_count);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     ShaderStage stages[2] = {StageVertex, StageFragment};
@@ -306,7 +332,17 @@ int main() {
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
     GLuint EyeID = glGetUniformLocation(programID, "Eye");
     GLuint LightID = glGetUniformLocation(programID, "Light");
+    GLuint LightID2 = glGetUniformLocation(programID, "Light2");
     GLuint ShadowMatrix1ID = glGetUniformLocation(programID, "shadow_matrix1");
+    GLuint ShadowMatrix1ID2 = glGetUniformLocation(programID, "shadow_matrix2");
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, TextureIDs[shadowmap]);
+    glUniform1i(glGetUniformLocation(programID, "depth_texture"), shadowmap);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, TextureIDs[shadowmap2]);
+    glUniform1i(glGetUniformLocation(programID, "depth_texture2"), shadowmap2);
 
     glm::mat4 shadow_matrix1 = glm::mat4(
         glm::vec4(0.5, 0.0, 0.0, 0.0),
@@ -314,6 +350,12 @@ int main() {
         glm::vec4(0.0, 0.0, 0.5, 0.0),
         glm::vec4(0.5, 0.5, 0.5, 1.0)
     ) * shadow_mvp;
+    glm::mat4 shadow_matrix2 = glm::mat4(
+        glm::vec4(0.5, 0.0, 0.0, 0.0),
+        glm::vec4(0.0, 0.5, 0.0, 0.0),
+        glm::vec4(0.0, 0.0, 0.5, 0.0),
+        glm::vec4(0.5, 0.5, 0.5, 1.0)
+    ) * shadow_mvp2;
 
     printf("ImageTexture Loaded.\n");
     // Draw
@@ -328,7 +370,9 @@ int main() {
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
         glUniform3fv(EyeID, 1, (GLfloat*)GlobalEye);
         glUniform3fv(LightID, 1, (GLfloat*)&light_pos[0]);
+        glUniform3fv(LightID2, 1, (GLfloat*)&light_pos2[0]);
         glUniformMatrix4fv(ShadowMatrix1ID, 1, GL_FALSE, (GLfloat*)&shadow_matrix1);
+        glUniformMatrix4fv(ShadowMatrix1ID2, 1, GL_FALSE, (GLfloat*)&shadow_matrix2);
         draw(vertex_count);
         // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
         glfwSwapBuffers(window);
