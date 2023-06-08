@@ -13,6 +13,8 @@ layout (location = 0) out vec4 fColor;
 // uniform sampler2D TextureSampler;
 uniform sampler2D depth_texture;
 uniform sampler2D depth_texture2;
+uniform sampler2D depth_texture_trans;
+uniform sampler2D depth_texture_trans2;
 uniform vec3 Eye;
 uniform vec3 Light;
 uniform vec3 Light2;
@@ -28,8 +30,8 @@ void main() {
     vec3 Light_vec2 = Light2 - pos3;
     vec3 normal3;
     normal3.xyz = normal.xyz;
-    float strength = 15.0;
-    float strength2 = 25.0;
+    float strength = 90.0;
+    float strength2 = 135.0;
     float env = 0.1;
     float kd = 0.3;
     float kr = 1.0;
@@ -58,8 +60,14 @@ void main() {
     if (texture(depth_texture, sc_post_w.xy).x + bias < sc_post_w.z) {
         f = 0.0;
     }
+    if (f > 0.0 && texture(depth_texture_trans, sc_post_w.xy).x + bias < sc_post_w.z) {
+        f = f * 0.8;
+    }
     if (texture(depth_texture2, sc_post_w2.xy).x + bias2 < sc_post_w2.z) {
         f2 = 0.0;
+    }
+    if (f2 > 0.0 && texture(depth_texture_trans2, sc_post_w2.xy).x + bias2 < sc_post_w2.z) {
+        f2 = f2 * 0.8;
     }
     // f = f2 = 0.5;
 
