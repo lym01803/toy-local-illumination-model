@@ -465,7 +465,7 @@ int main() {
         // *GlobalEye = RotateStepXOZ * (*GlobalEye);
         // updateMVP();
 
-        std::cout << GlobalEye->x << ' ' << GlobalEye ->y << ' ' << GlobalEye->z << std::endl;
+        // std::cout << GlobalEye->x << ' ' << GlobalEye ->y << ' ' << GlobalEye->z << std::endl;
         ++nbFrames;
         currentTime = glfwGetTime();
         if (currentTime - lastTime >= 1.0) {
