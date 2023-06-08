@@ -150,7 +150,7 @@ int initVBOs(ModelObject * objs[], int n, int * size_count,
     glGenBuffers(1, vertexnormbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, *vertexnormbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * (*size_count), merged_normals, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
     free(merged_vertices);
     free(merged_uvs);
@@ -158,21 +158,30 @@ int initVBOs(ModelObject * objs[], int n, int * size_count,
     return 1;
 }
 
-void draw(int size_count, int enable_depth_test = 1) {
+void draw(int size_count, int enable_depth_test = 1, int clear = 1, int blend = 0) {
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glEnable(GL_TEXTURE_2D);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (clear) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
     if (enable_depth_test) {
         glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
         // glEnable(GL_CULL_FACE);
     }
     else {
         glDisable(GL_DEPTH_TEST);
         // glDisable(GL_CULL_FACE);
     }
-    glDepthFunc(GL_LESS);
+    if (blend) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+    else {
+        glDisable(GL_BLEND);
+    }
     glDrawArrays(GL_TRIANGLES, 0, size_count);
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
@@ -251,6 +260,21 @@ int main() {
     initVBOs(objs_ptr_arr, objlist.size(), &vertex_count,
             &VertexBuffer, &VertexArrayID, &VertexColorBuffer, &VertexNormBuffer);
 
+    std::vector<ModelObject> objlist2 = vector<ModelObject>();
+    loadObjectsfromTxt("scene-2.txt", objlist2);
+    ModelObject ** objs_ptr_arr2 = (ModelObject **) malloc(sizeof(ModelObject *) * objlist2.size());
+    for (int i = 0; i < objlist2.size(); ++i) {
+        objs_ptr_arr2[i] = &objlist2[i];
+    }
+
+    int vertex_count2;
+    GLuint VertexBuffer2;
+    GLuint VertexArrayID2;
+    GLuint VertexColorBuffer2;
+    GLuint VertexNormBuffer2;
+    initVBOs(objs_ptr_arr2, objlist2.size(), &vertex_count2, 
+            &VertexBuffer2, &VertexArrayID2, &VertexColorBuffer2, &VertexNormBuffer2);
+    
     // GLuint textureID = LoadBMPTexture("./city-sun.bmp");
     // =============================== Light ===================================
 
@@ -303,6 +327,7 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID[shadowmap]);
     glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
     glClear(GL_DEPTH_BUFFER_BIT);
+    glBindVertexArray(VertexArrayID);
     draw(vertex_count);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -316,6 +341,7 @@ int main() {
     glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID[shadowmap2]);
     glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
     glClear(GL_DEPTH_BUFFER_BIT);
+    glBindVertexArray(VertexArrayID);
     draw(vertex_count);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -350,6 +376,7 @@ int main() {
     GLuint LightID2 = glGetUniformLocation(programID, "Light2");
     GLuint ShadowMatrix1ID = glGetUniformLocation(programID, "shadow_matrix1");
     GLuint ShadowMatrix1ID2 = glGetUniformLocation(programID, "shadow_matrix2");
+    GLuint FlagID = glGetUniformLocation(programID, "flag");
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, TextureIDs[shadowmap]);
@@ -377,6 +404,8 @@ int main() {
     double lastTime = glfwGetTime();
     int nbFrames = 0;
     double currentTime = glfwGetTime();
+    glm::vec4 posflag = glm::vec4(1.0);
+    glm::vec4 negflag = glm::vec4(-1.0);
 
     // ========================= Main Loop =============================
     while (!glfwWindowShouldClose(window)) {
@@ -391,12 +420,22 @@ int main() {
         glUniform3fv(LightID2, 1, (GLfloat*)&light_pos2[0]);
         glUniformMatrix4fv(ShadowMatrix1ID, 1, GL_FALSE, (GLfloat*)&shadow_matrix1);
         glUniformMatrix4fv(ShadowMatrix1ID2, 1, GL_FALSE, (GLfloat*)&shadow_matrix2);
-        draw(vertex_count, 1);
-        // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
+        // ============================== Bind and Draw Call ===============================
+        glUniform4fv(FlagID, 1, (GLfloat*)&posflag[0]);
+        glBindVertexArray(VertexArrayID);
+        glDepthMask(GL_TRUE);
+        draw(vertex_count, 1, 1, 0);
+        
+        glUniform4fv(FlagID, 1, (GLfloat*)&negflag[0]);
+        glBindVertexArray(VertexArrayID2);
+        glDepthMask(GL_FALSE);
+        draw(vertex_count2, 1, 0, 1);
         glfwSwapBuffers(window);
         glfwPollEvents();
+
         // *GlobalEye = RotateStepXOZ * (*GlobalEye);
         // updateMVP();
+
         ++nbFrames;
         currentTime = glfwGetTime();
         if (currentTime - lastTime >= 1.0) {

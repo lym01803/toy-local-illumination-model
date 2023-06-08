@@ -16,6 +16,7 @@ uniform sampler2D depth_texture2;
 uniform vec3 Eye;
 uniform vec3 Light;
 uniform vec3 Light2;
+uniform vec4 flag;
 
 void main() {
     // fColor = vec4(1.0, 0.5, 0.25, 1.0);
@@ -60,9 +61,13 @@ void main() {
     if (texture(depth_texture2, sc_post_w2.xy).x + bias2 < sc_post_w2.z) {
         f2 = 0.0;
     }
+    // f = f2 = 0.5;
 
     float I = 0.0;
     I += env;
+    if (flag.x < 0. && dot(Light_vec, normal3) < 0.) {
+        normal3 = -normal3;
+    }
     if (dot(Light_vec, normal3) > 0.) {
         float I_diffuse = strength * kd / d2 * dot(Light_vec, normal3);
         if (I_diffuse > 0.) {
@@ -72,6 +77,9 @@ void main() {
         if (I_reflect > 0.) {
             I += f * I_reflect;
         }
+    }
+    if (flag.x < 0. && dot(Light_vec2, normal3) < 0.) {
+        normal3 = -normal3;
     }
     if (dot(Light_vec2, normal3) > 0.) {
         float I_diffuse = strength2 * kd / d22 * dot(Light_vec2, normal3);
@@ -84,7 +92,8 @@ void main() {
         }
     }
 
-    fColor = vec4(I, I, I, 1.0);
+    // I = 0.5;
+    fColor = vec4(I, I, I, 0.2);
     
     // fColor.rgb = texture(TextureSampler, UV).rgb;
 }
