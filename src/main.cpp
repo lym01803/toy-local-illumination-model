@@ -28,7 +28,7 @@ GLuint TextureIDs[nummaps] = {0xffffffff};
 
 GLuint VertexBuffer;
 GLuint VertexArrayID;
-GLuint VertexColorBufffer;
+GLuint VertexColorBuffer;
 GLuint VertexNormBuffer;
 
 glm::mat4 * GlobalMVP = NULL;
@@ -117,7 +117,8 @@ static void key_callback(GLFWwindow * window, int key, int scancode, int action,
     }
 }
 
-int initVBOs(ModelObject * objs[], int n, int * size_count) {
+int initVBOs(ModelObject * objs[], int n, int * size_count, 
+                GLuint * vertexbuffer, GLuint * vertexarrayid, GLuint * vertexuvbuffer, GLuint * vertexnormbuffer) {
     *size_count = 0;
     for (int i = 0; i < n; ++i) {
         *size_count += objs[i]->vertices.size();
@@ -133,21 +134,21 @@ int initVBOs(ModelObject * objs[], int n, int * size_count) {
         offset += objs[i]->vertices.size();
     }
 
-    glGenBuffers(1, &VertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+    glGenBuffers(1, vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, *vertexbuffer);
 
-    glGenVertexArrays(1, &VertexArrayID);
-    glBindVertexArray(VertexArrayID);
+    glGenVertexArrays(1, vertexarrayid);
+    glBindVertexArray(*vertexarrayid);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * (*size_count), merged_vertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
-    glGenBuffers(1, &VertexColorBufffer);
-    glBindBuffer(GL_ARRAY_BUFFER, VertexColorBufffer);
+    glGenBuffers(1, vertexuvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, *vertexuvbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * (*size_count), merged_uvs, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)0);
 
-    glGenBuffers(1, &VertexNormBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, VertexNormBuffer);
+    glGenBuffers(1, vertexnormbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, *vertexnormbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * (*size_count), merged_normals, GL_STATIC_DRAW);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
 
@@ -157,13 +158,20 @@ int initVBOs(ModelObject * objs[], int n, int * size_count) {
     return 1;
 }
 
-void draw(int size_count) {
+void draw(int size_count, int enable_depth_test = 1) {
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glEnable(GL_TEXTURE_2D);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
+    if (enable_depth_test) {
+        glEnable(GL_DEPTH_TEST);
+        // glEnable(GL_CULL_FACE);
+    }
+    else {
+        glDisable(GL_DEPTH_TEST);
+        // glDisable(GL_CULL_FACE);
+    }
     glDepthFunc(GL_LESS);
     glDrawArrays(GL_TRIANGLES, 0, size_count);
     glDisableVertexAttribArray(0);
@@ -202,7 +210,7 @@ void bind_shadow_map(int index, GLuint * depth_fbo_ID_ptr) {
 }
 
 int main() {
-    // Initialize glfw
+    // ========================== Initialize glfw =================================
     if (!glfwInit()) {
         std::cout << "Failed to initialize glfw" << std::endl;
     }
@@ -228,7 +236,7 @@ int main() {
     if (!gladLoadGL()) {
         std::cout << "gladLoadGL failed" << std::endl;
     }
-    // =============================================================================
+    // =========================== Initialize VBO ==================================
     int vertex_count;
 
     std::vector<ModelObject> objlist = vector<ModelObject>();
@@ -240,9 +248,11 @@ int main() {
         objs_ptr_arr[i] = &objlist[i];
     }
 
-    initVBOs(objs_ptr_arr, objlist.size(), &vertex_count);
+    initVBOs(objs_ptr_arr, objlist.size(), &vertex_count,
+            &VertexBuffer, &VertexArrayID, &VertexColorBuffer, &VertexNormBuffer);
 
     // GLuint textureID = LoadBMPTexture("./city-sun.bmp");
+    // =============================== Light ===================================
 
     glm::vec3 light_pos = glm::vec3(2., 4., 3.);
     glm::mat4 light_view_matrix = glm::mat4(
@@ -268,6 +278,7 @@ int main() {
     ));
     glm::mat4 shadow_mvp2 = light_project_matrix2 * light_view_matrix2;
 
+    // ============================ Shadow Map Texture Buffer ==============================
     GLuint depth_fbo_ID[nummaps];
     memset(depth_fbo_ID, 0xff, sizeof(GLuint) * nummaps);
     bind_shadow_map(shadowmap, &depth_fbo_ID[shadowmap]);
@@ -275,6 +286,7 @@ int main() {
     std::cout << TextureIDs[shadowmap] << ' ' << depth_fbo_ID[shadowmap] << ' ' << std::endl;
     std::cout << TextureIDs[shadowmap2] << ' ' << depth_fbo_ID[shadowmap2] << ' ' << std::endl;
 
+    // ============================== Draw Shadow Map ===============================
     ShaderStage shadow_stages[2] = {StageVertex, StageFragment};
     const char * shadow_filePaths[2] = {"shader/shadowmap_vertex.glsl", "shader/shadowmap_fragment.glsl"};
 
@@ -300,13 +312,14 @@ int main() {
         GL_FALSE,
         (GLfloat*)&shadow_mvp2
     );
-
+    // ============================= Repeat for Light Source 2 ===============================
     glBindFramebuffer(GL_FRAMEBUFFER, depth_fbo_ID[shadowmap2]);
     glViewport(0, 0, DEPTH_TEXTURE_SIZE, DEPTH_TEXTURE_SIZE);
     glClear(GL_DEPTH_BUFFER_BIT);
     draw(vertex_count);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // ============================= Prepare for Shader ===============================
     ShaderStage stages[2] = {StageVertex, StageFragment};
     const char * filePaths[2] = {"shader/vertex.glsl", "shader/fragment.glsl"};
 
@@ -314,6 +327,7 @@ int main() {
 
     glUseProgram(programID);
 
+    // ============================= Model View Projection ==============================
     GlobalProjection = new glm::mat4(glm::perspective(
         glm::radians(45.f),
         ((GLfloat)width) / ((GLfloat)height),
@@ -329,6 +343,7 @@ int main() {
     GlobalModel = new glm::mat4(1.f);
     GlobalMVP = new glm::mat4((*GlobalProjection) * (*GlobalView) * (*GlobalModel));
 
+    // ============================= Prepare for Uniform Variable Passing ================================
     GLuint MatrixID = glGetUniformLocation(programID, "MVP");
     GLuint EyeID = glGetUniformLocation(programID, "Eye");
     GLuint LightID = glGetUniformLocation(programID, "Light");
@@ -362,10 +377,13 @@ int main() {
     double lastTime = glfwGetTime();
     int nbFrames = 0;
     double currentTime = glfwGetTime();
+
+    // ========================= Main Loop =============================
     while (!glfwWindowShouldClose(window)) {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         // printf("%d %d\n", width, height);
+        // ======================= Update M V P According to Current Eye Position ========================
         glViewport(0, 0, width, height);
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, (GLfloat*)GlobalMVP);
         glUniform3fv(EyeID, 1, (GLfloat*)GlobalEye);
@@ -373,7 +391,7 @@ int main() {
         glUniform3fv(LightID2, 1, (GLfloat*)&light_pos2[0]);
         glUniformMatrix4fv(ShadowMatrix1ID, 1, GL_FALSE, (GLfloat*)&shadow_matrix1);
         glUniformMatrix4fv(ShadowMatrix1ID2, 1, GL_FALSE, (GLfloat*)&shadow_matrix2);
-        draw(vertex_count);
+        draw(vertex_count, 1);
         // std::cout << GlobalEye->x << ' ' << GlobalEye->y << ' ' << GlobalEye->z << std::endl;
         glfwSwapBuffers(window);
         glfwPollEvents();
