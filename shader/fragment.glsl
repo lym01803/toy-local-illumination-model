@@ -52,11 +52,11 @@ void main() {
     vec4 sc_post_w = shadow_coord / shadow_coord.w;
     vec4 sc_post_w2 = shadow_coord2 / shadow_coord2.w;
 
-    float bias = 0.0001 * tan(acos(dot(normal3, Light_vec)));
-    float bias2 = 0.0001 * tan(acos(dot(normal3, Light_vec2)));
+    float bias = 0.00001 * tan(acos(dot(normal3, Light_vec)));
+    float bias2 = 0.00001 * tan(acos(dot(normal3, Light_vec2)));
 
-    bias = clamp(bias, 0.0001, 0.01);
-    bias2 = clamp(bias2, 0.0001, 0.01);
+    bias = clamp(bias, 0.00001, 0.01);
+    bias2 = clamp(bias2, 0.00001, 0.01);
     if (texture(depth_texture, sc_post_w.xy).x + bias < sc_post_w.z) {
         f = 0.0;
     }

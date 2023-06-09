@@ -1,3 +1,3 @@
 #!/bin/bash
-cd /Users/lym01803/Documents/Codes/PlayWithGL
-./main
+cd "$(dirname "$0")"
+./main-universal
